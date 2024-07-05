@@ -47,7 +47,8 @@ avr_HEADERS = \
     stdlib.h \
     string.h \
     time.h \
-    unistd.h
+    unistd.h \
+    iconv.h
 
 
 SUBDIRS = avr compat util sys
