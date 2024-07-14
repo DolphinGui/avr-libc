@@ -353,6 +353,7 @@ __ATTR_CONST__ extern float powf (float __x, float __y);
 __ATTR_CONST__ extern double pow (double __x, double __y);
 __ATTR_CONST__ extern long double powl (long double __x, long double __y);
 
+
 /**
     The function isnan() returns 1 if the argument \a __x represents a
     "not-a-number" (NaN) object, otherwise 0.
@@ -376,6 +377,9 @@ __ATTR_CONST__ extern int isinfl (long double __x);
     The isfinite() function returns a nonzero value if \a __x is finite:
     not plus or minus infinity, and not NaN.
  */
+
+#define isfinite __isfinite
+
 __ATTR_CONST__ static __ATTR_ALWAYS_INLINE__ int isfinitef (float __x)
 {
     unsigned char __exp;
@@ -390,12 +394,12 @@ __ATTR_CONST__ static __ATTR_ALWAYS_INLINE__ int isfinitef (float __x)
 }
 
 #if __SIZEOF_DOUBLE__ == __SIZEOF_FLOAT__
-static __ATTR_ALWAYS_INLINE__ int isfinite (double __x)
+static __ATTR_ALWAYS_INLINE__ int __isfinite (double __x)
 {
     return isfinitef (__x);
 }
 #else
-int isfinite (double __x);
+int __isfinite (double __x);
 #endif /* double = float */
 
 #if __SIZEOF_LONG_DOUBLE__ == __SIZEOF_FLOAT__
@@ -406,6 +410,103 @@ static __ATTR_ALWAYS_INLINE__ int isfinitel (long double __x)
 #else
 int isfinitel (long double __x);
 #endif /* long double = float */
+
+
+#define isnormal __isnormal
+/**
+    The isnormal() function returns a nonzero value if \a __x is normal:
+    not zero, subnormal, infinite, nor NaN.
+ */
+__ATTR_CONST__ static __ATTR_ALWAYS_INLINE__ int isnormalf (float __x)
+{
+    // implementation suboptimal, need to learn actual assembly to do this right
+    char* bytes = (char*) &__x;
+    // catches both subnormals and NaN
+    unsigned char exponent = (bytes[2] & 0x80) | (bytes[3] & 0x7f);
+    return exponent != 0x00 && exponent != 0xff;
+}
+
+#if __SIZEOF_DOUBLE__ == __SIZEOF_FLOAT__
+static __ATTR_ALWAYS_INLINE__ int __isnormal (double __x)
+{
+    return isnormalf (__x);
+}
+#else
+// C says these are macros, and libstdc++ follows that
+static int __isnormal (double __x)
+{
+    char* bytes = (char*) &__x;
+    unsigned exponent = (bytes[6] & 0xf0) | ((bytes[7] << 1) << 8);
+    // If exp was inf, then it should be 0b1111'1110'1111'0000 aka 0xfef0
+    return exponent != 0 && exponent != 0xFEF0;
+}
+
+#endif /* double = float */
+
+#if __SIZEOF_LONG_DOUBLE__ == __SIZEOF_FLOAT__
+static __ATTR_ALWAYS_INLINE__ int isnormall (long double __x)
+{
+    return isnormalf (__x);
+}
+#else
+// literally copy past of isnormal. Need to double check
+// long double really is just 8 bytes long
+static int isnormall (long double __x)
+{
+    char* bytes = (char*) &__x;
+    unsigned exponent = (bytes[6] & 0xf0) | ((bytes[7] << 1) << 8);
+    // If exp was inf, then it should be 0b1111'1110'1111'0000 aka 0xfef0
+    return exponent != 0 && exponent != 0xFEF0;
+}
+
+#endif /* long double = float */
+# define __DELEGATE_FUNC(FUNC, ARG)      \
+  (sizeof (ARG) == sizeof (float)        \
+   ? FUNC ## f ARG             \
+   : sizeof (ARG) == sizeof (double)     \
+   ? FUNC ARG                  \
+   : FUNC ## l ARG)
+
+enum {FP_NAN, FP_INFINITE,        
+     FP_NORMAL, FP_SUBNORMAL, FP_ZERO};
+/* This is to get libstdc++ config to work correctly, since libstdc++
+   replaces the implementation anyways. */
+#ifdef __cplusplus
+#  define fpclassify(__x) __builtin_fpclassify (FP_NAN, FP_INFINITE,        \
+     FP_NORMAL, FP_SUBNORMAL, FP_ZERO, __x)
+#else
+#define fpclassify(__x) __DELEGATE_FUNC(__fpclassify, (__x))
+static int __fpclassify(double __x){
+    if(__x == 0.0) return FP_ZERO;
+    if(isinf(__x)) return FP_INFINITE;
+    if(isnan(__x)) return FP_NAN;
+    if(isnormal(__x)) return FP_NORMAL;
+    return FP_SUBNORMAL;
+}
+static int __fpclassifyf(float __x){
+    if(__x == 0.0) return FP_ZERO;
+    if(isinff(__x)) return FP_INFINITE;
+    if(isnanf(__x)) return FP_NAN;
+    if(isnormalf(__x)) return FP_NORMAL;
+    return FP_SUBNORMAL;
+}
+static int __fpclassifyl(long double __x){
+    if(__x == 0.0) return FP_ZERO;
+    if(isinfl(__x)) return FP_INFINITE;
+    if(isnanl(__x)) return FP_NAN;
+    if(isnormall(__x)) return FP_NORMAL;
+    return FP_SUBNORMAL;
+}
+#endif
+
+// normally the functions are nonsignalling versions of builtins
+// but avrlibc doesn't do fenv.h, so there's no difference
+#define isgreater(__d1, __d2) (__d1 > __d2)
+#define isgreaterequal(__d1, __d2) (__d1 >= __d2)
+#define isless(__d1, __d2) (__d1 < __d2)
+#define islessequal(__d1, __d2) (__d1 <= __d2)
+#define islessgreater(__d1, __d2) (__d1 < __d2 || __d1 > __d2)
+#define isunordered(__d1, __d2) (__DELEGATE_FUNC(isnan, (__d1)) || __DELEGATE_FUNC(isnan, (__d2)))
 
 /**
     The copysign() function returns \a __x but with the sign of \a __y.
@@ -448,8 +549,9 @@ __ATTR_CONST__ static __ATTR_ALWAYS_INLINE__ long double copysignl (long double 
     comparison `-0.0 < 0.0' is false, but `signbit (-0.0)' will return a
     nonzero value.
  */
+#define signbit __signbit
 __ATTR_CONST__ extern int signbitf (float __x);
-__ATTR_CONST__ extern int signbit (double __x);
+__ATTR_CONST__ extern int __signbit (double __x);
 __ATTR_CONST__ extern int signbitl (long double __x);
 
 /**

@@ -934,6 +934,11 @@ extern int	sscanf(const char *__buf, const char *__fmt, ...);
  */
 extern int	sscanf_P(const char *__buf, const char *__fmt, ...);
 
+/**
+   Variant of sscanf() using va_list
+ */
+extern int  vsscanf(const char *__buf, const char *__fmt, va_list __ap);
+
 #if defined(__DOXYGEN__)
 /**
    Flush \c stream.

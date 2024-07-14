@@ -66,6 +66,7 @@ stdio_a_c_sources =	\
 	vfscanf_p.c \
 	vprintf.c \
 	vscanf.c \
+	vsscanf.c \
 	vsnprintf.c \
 	vsnprintf_p.c \
 	vsprintf.c \
