@@ -133,7 +133,7 @@
 
 #ifdef __cplusplus
 #  define ISR(vector, ...)            \
-    extern "C" void vector (void) __attribute__ ((__signal__,__INTR_ATTRS)) __VA_ARGS__; \
+    extern "C" void vector (void) __attribute__ ((__signal__,__INTR_ATTRS, nothrow)) __VA_ARGS__; \
     void vector (void)
 #else
 #  define ISR(vector, ...)            \
@@ -158,8 +158,8 @@
 
 #ifdef __cplusplus
 #  define SIGNAL(vector)					\
-    extern "C" void vector(void) __attribute__ ((__signal__, __INTR_ATTRS));	\
-    void vector (void)
+    extern "C" void vector(void) noexcept __attribute__ ((__signal__, __INTR_ATTRS));	\
+    void vector (void) noexcept
 #else
 #  define SIGNAL(vector)					\
     void vector (void) __attribute__ ((__signal__, __INTR_ATTRS));		\
@@ -182,8 +182,8 @@
 
 #ifdef __cplusplus
 #  define EMPTY_INTERRUPT(vector)                \
-    extern "C" void vector(void) __attribute__ ((__signal__,__naked__,__INTR_ATTRS));    \
-    void vector (void) {  __asm__ __volatile__ ("reti" ::: "memory"); }
+    extern "C" void vector(void) noexcept __attribute__ ((__signal__,__naked__,__INTR_ATTRS));    \
+    void vector (void) noexcept {  __asm__ __volatile__ ("reti" ::: "memory"); }
 #else
 #  define EMPTY_INTERRUPT(vector)                \
     void vector (void) __attribute__ ((__signal__,__naked__,__INTR_ATTRS));    \
@@ -225,9 +225,9 @@
 #else /* real code */
 
 #ifdef __cplusplus
-#    define ISR_ALIAS(vector, tgt) extern "C" void vector (void) \
+#    define ISR_ALIAS(vector, tgt) extern "C" void vector (void) noexcept \
 	__attribute__((__signal__, __naked__, __INTR_ATTRS)); \
-	void vector (void) { __asm__ __volatile__ ("%~jmp " __STRINGIFY(tgt) ::); }
+	void vector (void) noexcept { __asm__ __volatile__ ("%~jmp " __STRINGIFY(tgt) ::); }
 #else	  /* !__cplusplus */
 #  define ISR_ALIAS(vector, tgt) void vector (void) \
 	__attribute__((__signal__, __naked__, __INTR_ATTRS)); \
