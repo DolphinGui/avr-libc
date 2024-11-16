@@ -52,7 +52,7 @@ PATH=/usr/xpg4/bin:$PATH
 #     -mmcu=* -msp8 -mshort-calls
 #     -mdouble=32 -mdouble=64 -mlong-double=32 -mlong-double=64.
 
-CFLAGS_SPACE="-mcall-prologues -Os"
+CFLAGS_SPACE="-mcall-prologues -Os -flto -ffat-lto-objects"
 CFLAGS_BIG_MEMORY='-Os $(FNO_JUMP_TABLES)'
 CFLAGS_SPEED="-Os"
 
